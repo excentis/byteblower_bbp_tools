@@ -202,6 +202,13 @@ class ByteBlowerGUIPort(object):
             attributes['physicalServerType'] = server_type
 
     def dock_to_interface(self, server_address, interface_name):
+        """Docks a ByteBlower Port to a ByteBlower Interface
+
+        :param server_address: The address of the ByteBlower server to dock the port to
+        :type server_address: str
+        :param interface_name: Name of the interface to dock the port to.  E.g. trunk-1-1
+        :type interface_name: str
+        """
         docking_parameters = _find_docking_parameters(server_address, interface_name)
 
         if docking_parameters is None:
@@ -212,6 +219,13 @@ class ByteBlowerGUIPort(object):
         self._dock_to(server_address, physical_id, interface_id, 'ByteBlower')
 
     def dock_to_wireless_endpoint(self, meetingpoint_address, device_uuid):
+        """Docks a ByteBlower Port to a ByteBlower Interface
+
+        :param meetingpoint_address: The address of the ByteBlower MeetingPoint to dock the port to
+        :type meetingpoint_address: str
+        :param device_uuid: UUID of the device to dock to.
+        :type device_uuid: str
+        """
         self._dock_to(meetingpoint_address, device_uuid, '-1', 'MeetingPoint')
 
     def set_mac(self, new_mac):
@@ -241,6 +255,11 @@ class ByteBlowerGUIPort(object):
             obj[i].text = str(new_val)
 
     def set_ip(self, ip):
+        """ Sets the IPv4 address for a ByteBlower Port
+
+        :param ip: The IP address for the ByteBlower Port in the form of "10.4.8.200"
+        :type ip: str
+        """
         for l3config in self._tree.iterfind("ipv4Configuration"):
             l3config.attrib['addressConfiguration'] = "Fixed"
 
@@ -248,6 +267,11 @@ class ByteBlowerGUIPort(object):
                 self._set_address(ip_obj, ip)
 
     def set_netmask(self, netmask):
+        """ Sets the IPv4 netmask for a ByteBlower Port
+
+        :param netmask: The netmask for the ByteBlower Port in the form of "255.255.255.0"
+        :type netmask: str
+        """
         for l3config in self._tree.iterfind("ipv4Configuration"):
             l3config.attrib['addressConfiguration'] = "Fixed"
 
@@ -255,6 +279,11 @@ class ByteBlowerGUIPort(object):
                 self._set_address(netmask_obj, netmask)
 
     def set_gateway(self, gateway):
+        """ Sets the IPv4 gateway for a ByteBlower Port
+
+        :param gateway: The gateway for the ByteBlower Port in the form of "10.4.8.1"
+        :type gateway: str
+        """
         for l3config in self._tree.iterfind("ipv4Configuration"):
             l3config.attrib['addressConfiguration'] = "Fixed"
 
@@ -317,16 +346,6 @@ class ByteBlowerProjectFile(object):
 
         raise PortNotFound("Could not find a port named '{}' in project '{}'".format(port_name, self._filename))
 
-    def dock_port_to_interface(self, port_name, server_address, interface_name):
-        logging.info("Reconfiguring project port {} to use {}@{}".format(port_name, server_address, interface_name))
-        port = self.get_port(port_name)
-        port.dock_to_interface(server_address, interface_name)
-
-    def dock_port_to_wireless_endpoint(self, port_name, meetingpoint_address, device_uuid):
-        logging.info("Reconfiguring project port {} to use {}@{}".format(port_name, meetingpoint_address, device_uuid))
-        port = self.get_port(port_name)
-        port.dock_to_wireless_endpoint(meetingpoint_address, device_uuid)
-
     def _find_frame(self, name):
         for frame in self._tree.iterfind('Frame'):
             if frame.get('name') == name:
@@ -334,6 +353,16 @@ class ByteBlowerProjectFile(object):
         raise FrameNotFound("Could not find a port named '{}' in project '{}'".format(name, self._filename))
 
     def get_frame(self, name):
+        """Gets a frame with a specified name
+
+        :param name: Name to search.
+        :type name: str
+
+        :raises: :class:`.FrameNotFound` when a frame cannot be found.
+
+        :return: The Frame specified by the name param
+        :rtype: :class:`.Frame`
+        """
         return Frame(self._find_frame(name))
 
     def copy_frame(self, name, copies, increment_source_port, increment_destination_port):
