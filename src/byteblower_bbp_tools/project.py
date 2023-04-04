@@ -1,20 +1,24 @@
 import logging
 import binascii
 from copy import deepcopy
+from typing import Union
 
 from lxml import etree
 from scapy.all import Ether, UDP
 
 
 def _find_docking_parameters(server_address, new_docking):
-    _docking_params = _get_docking_parameters_from_server(server_address, new_docking)
+    _docking_params = _get_docking_parameters_from_server(
+        server_address, new_docking)
 
     if _docking_params is not None:
         # it worked, return those
         return _docking_params
 
-    logging.warning("Guessing interface parameters for {} {}.  "
-                    "Install the ByteBlower python API to resolve this warning".format(server_address, new_docking))
+    logging.warning(
+        "Guessing interface parameters for {} {}.  "
+        "Install the ByteBlower python API to resolve this warning".format(
+            server_address, new_docking))
 
     # We couldn't ask the ByteBlower Server for the port.
     # Let's take an educated guess.
@@ -22,7 +26,8 @@ def _find_docking_parameters(server_address, new_docking):
 
 
 def _guess_docking_parameters(interface_name):
-    logging.warning("Guessing interface '%s' docking parameters" % interface_name)
+    logging.warning("Guessing interface '%s' docking parameters" %
+                    interface_name)
 
     if 'nontrunk' in interface_name:
         port_id = -1
@@ -56,7 +61,8 @@ def _get_docking_parameters_from_server(server_address, interface_name):
     connect_timeout_ns = int(1e9)  # one second
 
     try:
-        with AutoCleanupServer(server_address, timeout=connect_timeout_ns) as server:
+        with AutoCleanupServer(server_address,
+                               timeout=connect_timeout_ns) as server:
             byteblower_interface = server.InterfaceGetByName(interface_name)
 
             physical_interface = byteblower_interface.GetPhysicalInterface()
@@ -65,7 +71,8 @@ def _get_docking_parameters_from_server(server_address, interface_name):
             interface_id = byteblower_interface.PortIdGet() - 1
 
     except byteblower.ConfigError:
-        logging.warning("The ByteBlower server does not know interface '%s'" % interface_name)
+        logging.warning("The ByteBlower server does not know interface '%s'" %
+                        interface_name)
         return None
 
     except byteblower.ByteBlowerAPIException:
@@ -76,26 +83,31 @@ def _get_docking_parameters_from_server(server_address, interface_name):
 
 
 class ProjectParseError(Exception):
+
     def __init__(self, message):
         Exception.__init__(self, message)
 
 
 class PortNotFound(Exception):
+
     def __init__(self, message):
         Exception.__init__(self, message)
 
 
 class FrameNotFound(Exception):
+
     def __init__(self, message):
         Exception.__init__(self, message)
 
 
 class DockFailed(Exception):
+
     def __init__(self, message):
         super().__init__(message)
 
 
 class FormatError(Exception):
+
     def __init__(self, message):
         super().__init__(message)
 
@@ -122,7 +134,8 @@ class AutoCleanupServer(object):
     def __enter__(self):
         from byteblowerll import byteblower
         instance = byteblower.ByteBlower.InstanceGet()
-        self._server = instance.ServerAdd(self._address, self._port, self._timeout)
+        self._server = instance.ServerAdd(self._address, self._port,
+                                          self._timeout)
         return self._server
 
     def __exit__(self, *args, **kwargs):
@@ -136,6 +149,7 @@ class AutoCleanupServer(object):
 
 
 class Frame(object):
+
     def __init__(self, frame_tree):
         self._tree = frame_tree
 
@@ -169,7 +183,8 @@ class Frame(object):
         content = self._tree.get('bytesHexString')
         scapy_content = Ether(binascii.a2b_hex(content))
         scapy_content[UDP].sport = value
-        self._tree.set('bytesHexString', binascii.hexlify(str(scapy_content)))
+        self._tree.set('bytesHexString',
+                       binascii.hexlify(bytes(scapy_content)))
 
     @property
     def udp_dst_port(self):
@@ -182,7 +197,42 @@ class Frame(object):
         content = self._tree.get('bytesHexString')
         scapy_content = Ether(binascii.a2b_hex(content))
         scapy_content[UDP].dport = value
-        self._tree.set('bytesHexString', binascii.hexlify(str(scapy_content)))
+        self._tree.set('bytesHexString',
+                       binascii.hexlify(bytes(scapy_content)))
+
+    @property
+    def size(self):
+        content = self._tree.get('bytesHexString')
+        scapy_content = Ether(binascii.a2b_hex(content))
+        return len(scapy_content)
+
+
+class FlowTemplate(object):
+    """Interface to a flow template configuration."""
+
+    def __init__(self, flow_template_tree) -> None:
+        self._tree = flow_template_tree
+
+    @property
+    def name(self):
+        return self._tree.get('name')
+
+    @property
+    def frame_interval(self):
+        return self._tree.get("frameInterval")
+
+    @frame_interval.setter
+    def frame_interval(self, new_value: Union[float, int]):
+        """
+        Set the new frame interval.
+
+        .. :param new_value: Interval in nanoseconds
+
+        .. note::
+           The value will be truncated to the nearest integer value.
+        """
+        # ByteBlower GUI only accepts integer value (nanoseconds)
+        self._tree.set("frameInterval", str(int(new_value)))
 
 
 class ByteBlowerGUIPort(object):
@@ -191,10 +241,13 @@ class ByteBlowerGUIPort(object):
     def __init__(self, port_tree):
         self._tree = port_tree
 
-    def _dock_to(self, server_address, physical_interface_id, byteblower_interface_id, server_type):
-        for portConfig in self._tree.iterfind('ByteBlowerGuiPortConfiguration'):
+    def _dock_to(self, server_address, physical_interface_id,
+                 byteblower_interface_id, server_type):
+        for portConfig in self._tree.iterfind(
+                'ByteBlowerGuiPortConfiguration'):
             attributes = portConfig.attrib
-            new_server_address = server_address or attributes['physicalServerAddress']
+            new_server_address = server_address or attributes[
+                'physicalServerAddress']
 
             attributes['physicalInterfaceId'] = str(physical_interface_id)
             attributes['physicalPortId'] = str(byteblower_interface_id)
@@ -209,7 +262,8 @@ class ByteBlowerGUIPort(object):
         :param interface_name: Name of the interface to dock the port to.  E.g. trunk-1-1
         :type interface_name: str
         """
-        docking_parameters = _find_docking_parameters(server_address, interface_name)
+        docking_parameters = _find_docking_parameters(server_address,
+                                                      interface_name)
 
         if docking_parameters is None:
             # something went wrong
@@ -230,7 +284,8 @@ class ByteBlowerGUIPort(object):
 
     def set_mac(self, new_mac):
         if ':' not in new_mac:
-            raise FormatError("Unknown MAC Address Format, provide mac as 00:11:22:33:44:55")
+            raise FormatError(
+                "Unknown MAC Address Format, provide mac as 00:11:22:33:44:55")
 
         mac_list = new_mac.split(':')
 
@@ -308,7 +363,8 @@ class ByteBlowerProjectFile(object):
                 self._tree = etree.parse(f)
 
                 if self._tree is None:
-                    raise ProjectParseError("Can't parse '%s'" % self._filename)
+                    raise ProjectParseError("Can't parse '%s'" %
+                                            self._filename)
         except etree.ParseError:
             raise ProjectParseError("Can't parse '%s'" % self._filename)
 
@@ -331,11 +387,9 @@ class ByteBlowerProjectFile(object):
         for portConfig in port.iterfind('ByteBlowerGuiPortConfiguration'):
             attributes = portConfig.attrib
 
-            return (
-                attributes['physicalServerAddress'],
-                attributes['physicalInterfaceId'],
-                attributes['physicalPortId']
-            )
+            return (attributes['physicalServerAddress'],
+                    attributes['physicalInterfaceId'],
+                    attributes['physicalPortId'])
 
         return None
 
@@ -344,13 +398,58 @@ class ByteBlowerProjectFile(object):
             if port.attrib['name'] == port_name:
                 return port
 
-        raise PortNotFound("Could not find a port named '{}' in project '{}'".format(port_name, self._filename))
+        raise PortNotFound(
+            "Could not find a port named '{}' in project '{}'".format(
+                port_name, self._filename))
+
+    def list_port_names(self):
+        ports = []
+        for port in self._tree.iterfind("ByteBlowerGuiPort"):
+            ports.append(port.attrib['name'])
+        return ports
+
+    def list_flow_names(self):
+        flows = []
+        for flow in self._tree.iterfind("Flow"):
+            flows.append(flow.attrib['name'])
+        return flows
+
+    def _find_flow_template(self, name):
+        for template in self._tree.iterfind("FlowTemplate"):
+            if template.attrib['name'] == name:
+                return template
+
+        raise PortNotFound(f"Could not find a template named '{name}'"
+                           f" in project '{self._filename}'")
+
+    def get_flow_template(self, name):
+        return FlowTemplate(self._find_flow_template(name))
+
+    def list_flow_template_names(self):
+        flow_templates = []
+        for flow in self._tree.iterfind("FlowTemplate"):
+            flow_templates.append(flow.attrib['name'])
+        return flow_templates
+
+    def list_scenario_names(self):
+        scenarios = []
+        for scenario in self._tree.iterfind("Scenario"):
+            scenarios.append(scenario.attrib['name'])
+        return scenarios
+
+    def list_frame_names(self):
+        frames = []
+        for frame in self._tree.iterfind('Frame'):
+            frames.append(frame.attrib['name'])
+        return frames
 
     def _find_frame(self, name):
         for frame in self._tree.iterfind('Frame'):
             if frame.get('name') == name:
                 return frame
-        raise FrameNotFound("Could not find a port named '{}' in project '{}'".format(name, self._filename))
+        raise FrameNotFound(
+            "Could not find a port named '{}' in project '{}'".format(
+                name, self._filename))
 
     def get_frame(self, name):
         """Gets a frame with a specified name
@@ -365,10 +464,11 @@ class ByteBlowerProjectFile(object):
         """
         return Frame(self._find_frame(name))
 
-    def copy_frame(self, name, copies, increment_source_port, increment_destination_port):
+    def copy_frame(self, name, copies, increment_source_port,
+                   increment_destination_port):
         frame = self.get_frame(name)
 
-        for i in range(1, copies+1):
+        for i in range(1, copies + 1):
             new_frame = frame.copy(name + "_" + str(i))
             if increment_source_port:
                 new_frame.udp_src_port += i
