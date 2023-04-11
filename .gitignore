@@ -1,0 +1,12 @@
+# Runtime-generated files
+__pycache__
+# Test-specific files
+.pytest_cache/
+# Python Virtual Environment
+env/
+# Build-specific files
+/build/
+/dist/
+*.egg-info/
+# IDE-specific files
+.vscode/
