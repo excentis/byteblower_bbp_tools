@@ -94,6 +94,12 @@ class ProjectParseError(Exception):
         Exception.__init__(self, message)
 
 
+class ElementNotFound(Exception):
+
+    def __init__(self, message):
+        Exception.__init__(self, message)
+
+
 class PortNotFound(Exception):
 
     def __init__(self, message):
@@ -376,10 +382,9 @@ class ByteBlowerProjectFile(object):
                 self._tree = etree.parse(f)
 
                 if self._tree is None:
-                    raise ProjectParseError("Can't parse '%s'" %
-                                            self._filename)
-        except etree.ParseError:
-            raise ProjectParseError("Can't parse '%s'" % self._filename)
+                    raise ProjectParseError(f"Can't parse {self._filename!r}")
+        except etree.ParseError as pe:
+            raise ProjectParseError(f"Can't parse {self._filename!r}") from pe
 
     def save(self):
         self.save_as(self._filename)
@@ -435,7 +440,7 @@ class ByteBlowerProjectFile(object):
             if template.attrib['name'] == name:
                 return template
 
-        raise PortNotFound(
+        raise ElementNotFound(
             f"Could not find a flow template named '{name}'"
             f" in project '{self._filename}'"
         )
