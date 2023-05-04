@@ -1,9 +1,15 @@
-from .project import ByteBlowerProjectFile, PortNotFound, ProjectParseError, ByteBlowerGUIPort
-
+from .project import (ByteBlowerGUIPort, ByteBlowerProjectFile, DockFailed,
+                      ElementNotFound, FlowTemplate, FormatError, Frame,
+                      FrameNotFound, PortNotFound, ProjectParseError, Scenario)
 
 __all__ = [
     "ByteBlowerProjectFile",
-    "PortNotFound",
+    "ByteBlowerGUIPort",
+    "Scenario",
+    "FlowTemplate",
+    "Frame",
     "ProjectParseError",
-    "ByteBlowerGUIPort"
+    "DockFailed",
+    "ElementNotFound",
+    "FormatError",
 ]
