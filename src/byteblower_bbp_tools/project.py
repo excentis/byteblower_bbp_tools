@@ -1,7 +1,7 @@
 import binascii
 import logging
 from copy import deepcopy
-from typing import Union  # for type hinting
+from typing import Optional, Union  # for type hinting
 
 from lxml import etree
 from scapy.all import UDP, Ether
@@ -250,6 +250,51 @@ class FlowTemplate(object):
         self._tree.set("frameInterval", str(int(new_value)))
 
 
+class Scenario(object):
+    """Interface to a scenario configuration."""
+
+    def __init__(self, scenario_tree) -> None:
+        self._tree = scenario_tree
+
+    @property
+    def name(self):
+        return self._tree.get('name')
+
+    @property
+    def duration(self) -> Optional[int]:
+        max_scheduled_stop: int = None
+        for measurements in self._tree.iterfind("measurements"):
+            flow_stop_event = next(measurements.iterfind("flowStopEvent"))
+            scheduled_stop: Optional[str] = flow_stop_event.get(
+                "scheduledTime"
+            )
+            if scheduled_stop is not None:
+                scheduled_stop = int(scheduled_stop)
+                if max_scheduled_stop is None or scheduled_stop > max_scheduled_stop:
+                    max_scheduled_stop = scheduled_stop
+        return max_scheduled_stop
+
+    @duration.setter
+    def duration(self, new_value: Union[float, int]):
+        """
+        Set the new duration.
+
+        .. :param new_value: Duration in nanoseconds
+
+        .. note::
+           The value will be truncated to the nearest integer value.
+        """
+        # ByteBlower GUI only accepts integer value (nanoseconds)
+        new_scheduled_stop = int(new_value)
+        for measurements in self._tree.iterfind("measurements"):
+            flow_stop_event = next(measurements.iterfind("flowStopEvent"))
+            scheduled_stop: Optional[str] = flow_stop_event.get(
+                "scheduledTime"
+            )
+            if scheduled_stop is not None:
+                flow_stop_event.set("scheduledTime", str(new_scheduled_stop))
+
+
 class ByteBlowerGUIPort(object):
     """A port object."""
 
@@ -453,6 +498,19 @@ class ByteBlowerProjectFile(object):
         for flow in self._tree.iterfind("FlowTemplate"):
             flow_templates.append(flow.attrib['name'])
         return flow_templates
+
+    def _find_scenario(self, name):
+        for scenario in self._tree.iterfind("Scenario"):
+            if scenario.attrib['name'] == name:
+                return scenario
+
+        raise ElementNotFound(
+            f"Could not find a scenario named '{name}'"
+            f" in project '{self._filename}'"
+        )
+
+    def get_scenario(self, name):
+        return Scenario(self._find_scenario(name))
 
     def list_scenario_names(self):
         scenarios = []
